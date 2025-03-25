@@ -103,7 +103,8 @@ def show_options(expiry, ticker):
         color="cp", title="Implied volatility vs strike"
     ), calls[columns].to_dict('records'), puts[columns].to_dict('records'), f"""
 {total_days} days till expiry, {working_days} market days""", px.histogram(
-    returns, title=f"Historical underlying % returns over a {working_days} days period",)
+    returns, title=f"Historical underlying % returns over a {working_days} days period"
+    ).update_traces(marker_color=colors[0])
 
 
 
