@@ -1,0 +1,3 @@
+dash==3.0.1
+dash_bootstrap_components
+yfinance==0.2.55
