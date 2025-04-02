@@ -6,38 +6,33 @@ import plotly.io as pio
 from datetime import datetime, timedelta
 import numpy as np
 
-
-colors = ["#1a5276", "#0e6655", "#7b241c"]
+from utils import colors
 
 
 @callback(
-    [
-        Output("expiry_list", "options"), Output("underlying_price", "figure"),
-        Output("select_a_symbol_message", "style"), Output("select_expiry_block", "style"),
-    ],
+    [Output("expiry_list", "options"), Output("underlying_price", "figure"), Output("error_message", "style")],
     Input("validate_symbol", "n_clicks"),
     State("symbol_name", "value"),
+    
 )
 def fetch_symbol(n_click, symbol):
     if n_click == 0 or symbol is None:
-        return [], None, {"display": "block"}, {"display": "none"}
+        return [], None, {"display": "none"}
     
-    ticker = yf.Ticker(symbol)
+    try:
+        ticker = yf.Ticker(symbol)
+        return ticker.options, px.line(
+            ticker.history("3Y"), y="Close", title=f"{ticker.info['shortName']}",
+        ).update_traces(line_color=colors[0]), {"display": "none"}
 
-    stock_price_chart = px.line(
-        ticker.history("3Y"), y="Close", title=f"{ticker.info['shortName']}",
-    ).update_traces(line_color=colors[0])
-
-    return ticker.options, stock_price_chart, {"display": "none"}, {"display": "block"}
-
-
+    except Exception:
+        return [], None, {"display": "block"}
 
 @callback(
     [
         Output("prices_charts", "figure"), Output("iv_charts", "figure"),
         Output("option_table_calls", 'data'), Output("option_table_puts", 'data'),
-        Output("days_to_expiry", 'children'), Output("historical_returns", "figure"),
-        Output("options_shows_block", "style")
+        Output("days_to_expiry", 'children'), Output("historical_returns", "figure")
     ],
     Input("expiry_list", "value"),
     State("symbol_name", "value"),
@@ -45,10 +40,11 @@ def fetch_symbol(n_click, symbol):
 )
 def show_options(expiry, ticker):
     if expiry is None or expiry == "":
-        return None, None, None, None, {"display": "none"}
+        return None, None, None, None, None, None
     
+
     target_date = datetime.strptime(expiry, "%Y-%m-%d").date()
-    today_date = datetime(2025, 3, 25).date()
+    today_date = datetime.today().date()
     total_days = abs((target_date - today_date).days)
     working_days = np.busday_count(today_date, target_date)
     
@@ -65,26 +61,19 @@ def show_options(expiry, ticker):
 
     columns = ["lastTradeDate", "strike", "lastPrice", "volume", "impliedVolatility"]
     historical = ticker.history("3Y")
+    working_days = max(working_days, 1)
     returns = (historical["Close"].values[working_days:] / historical["Close"].values[:-working_days] - 1) * 100
 
-    price_strike_scatter = px.scatter(
+    return px.scatter(
         data, x="strike", y="lastPrice", color="cp",
         title="Prices vs strike", size="volume",
-    )
-
-    iv_strike_scatter = px.scatter(
+    ), px.scatter(
         data, x="strike", y="impliedVolatility", size="volume",
         color="cp", title="Implied volatility vs strike"
-    )
-
-
-    returns_hist = px.histogram(
-        returns, title=f"Historical underlying % returns over a {working_days} days period"
+    ), calls[columns].to_dict('records'), puts[columns].to_dict('records'), f"""
+{total_days} days till expiry, {working_days} market days""", px.histogram(
+    returns, title=f"Historical underlying % returns over a {working_days} days period"
     ).update_traces(marker_color=colors[0])
-
-
-    return price_strike_scatter, iv_strike_scatter, calls[columns].to_dict('records'), puts[columns].to_dict('records'), f"""
-{total_days} days till expiry, {working_days} market days""", returns_hist, {"display": "block"}
 
 
 
@@ -97,3 +86,4 @@ def call_put_tabs(tab_name):
     if tab_name == "put":
         return {"display": "none"}, {"display": "block"}
     return {"display": "block"}, {"display": "none"}
+

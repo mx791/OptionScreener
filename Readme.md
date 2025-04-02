@@ -1,12 +1,6 @@
 # OptionScreener
 
-Dash app to visualize options.
+Realtime option data visualization using Dash & Python.
 
-## Todo
-- open interest/volume per expiry 
-- loader
-- restyle header ✅
-- hide ✅
-- scatter plot colors
-- error messages
-- prettier charts : remove axis
+![](./ressources/capture_1.PNG)
+![](./ressources/capture_2.PNG)
