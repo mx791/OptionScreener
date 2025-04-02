@@ -4,7 +4,7 @@ import yfinance as yf
 import plotly.express as px
 import pandas as pd
 import plotly.io as pio
-from datetime import datetime, timedelta
+from datetime import datetime
 import numpy as np
 
 
@@ -19,8 +19,10 @@ app.layout = html.Div([
     html.H1("Option Screener"),
     html.Div("Symbol:"),
     dcc.Input(id="symbol_name", type="text", className="form-control"),
-    html.Button("Fetch data", id="validate_symbol"),
     html.Br(),
+    html.Center(dbc.Button("Fetch data", id="validate_symbol", color="info", className="me-1", style={"background-color": colors[0]})),
+    html.Br(),
+    html.Div("Error fetching data", id="error_message", style={"display": "none"}, className="alert alert-warning"),
     html.Br(),
     dcc.Graph(id="underlying_price",),
     html.Div("Expiry:"),
@@ -45,20 +47,23 @@ app.layout = html.Div([
 
 
 @callback(
-    [Output("expiry_list", "options"), Output("underlying_price", "figure")],
+    [Output("expiry_list", "options"), Output("underlying_price", "figure"), Output("error_message", "style")],
     Input("validate_symbol", "n_clicks"),
     State("symbol_name", "value"),
     
 )
 def fetch_symbol(n_click, symbol):
     if n_click == 0 or symbol is None:
-        return [], None
+        return [], None, {"display": "none"}
     
-    ticker = yf.Ticker(symbol)
-    return ticker.options, px.line(
-        ticker.history("3Y"), y="Close", title=f"{ticker.info['shortName']}",
-    ).update_traces(line_color=colors[0])
+    try:
+        ticker = yf.Ticker(symbol)
+        return ticker.options, px.line(
+            ticker.history("3Y"), y="Close", title=f"{ticker.info['shortName']}",
+        ).update_traces(line_color=colors[0]), {"display": "none"}
 
+    except Exception:
+        return [], None, {"display": "block"}
 
 @callback(
     [
@@ -72,11 +77,11 @@ def fetch_symbol(n_click, symbol):
 )
 def show_options(expiry, ticker):
     if expiry is None or expiry == "":
-        return None, None, None, None
+        return None, None, None, None, None, None
     
 
     target_date = datetime.strptime(expiry, "%Y-%m-%d").date()
-    today_date = datetime(2025, 3, 25).date()
+    today_date = datetime.today().date()
     total_days = abs((target_date - today_date).days)
     working_days = np.busday_count(today_date, target_date)
     
@@ -93,6 +98,7 @@ def show_options(expiry, ticker):
 
     columns = ["lastTradeDate", "strike", "lastPrice", "volume", "impliedVolatility"]
     historical = ticker.history("3Y")
+    working_days = max(working_days, 1)
     returns = (historical["Close"].values[working_days:] / historical["Close"].values[:-working_days] - 1) * 100
 
     return px.scatter(
