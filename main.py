@@ -13,7 +13,6 @@ app = Dash(external_stylesheets=[dbc.themes.LUX])
 
 colors = ["#1a5276", "#0e6655", "#7b241c"]
 
-
 app.layout = html.Div([
     dcc.Store(id='ticker_data'),
     html.H1("Option Screener"),
